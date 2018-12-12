@@ -48,6 +48,7 @@ extern TIM_HandleTypeDef htim14;
 
 extern DMA_HandleTypeDef hdma_usart2_rx;
 extern UART_HandleTypeDef huart2;
+extern uint32_t USART2CounterVal;
 
 extern void USART_IrqHandler (UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma);
 
@@ -117,7 +118,7 @@ void DMA1_Stream5_IRQHandler(void)
   /* USER CODE END DMA1_Stream5_IRQn 0 */
   //HAL_DMA_IRQHandler(&hdma_usart2_rx);
 	// use the IRQ Handlers defined in dma_circular.h to handle UART
-  DMA_IrqHandler (&hdma_usart2_rx);
+  DMA_UARTHandler(&hdma_usart2_rx);
   /* USER CODE BEGIN DMA1_Stream5_IRQn 1 */
 
   /* USER CODE END DMA1_Stream5_IRQn 1 */

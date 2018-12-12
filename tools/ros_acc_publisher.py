@@ -43,7 +43,7 @@ from struct import *
 import socket
 import csv
 
-LOGFILENAME ='GPSTimeDtata8.csv'
+LOGFILENAME ='log_data/temp_2.csv'
 UDP_IP = "192.168.0.1"
 UDP_PORT = 7000
 

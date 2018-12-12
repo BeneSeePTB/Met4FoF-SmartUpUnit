@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 dataStart = 10
 dataStop = 23000
-with open('GPSTimeDtataLongterm.csv', newline='') as csvfile:
+with open('log_data/GPSTimeDtataHSE_M8_N432_P2.csv', newline='') as csvfile:
     GPSCOunt=0
     datareader = csv.reader(csvfile,delimiter=';')
     tempGPSTArray=[]

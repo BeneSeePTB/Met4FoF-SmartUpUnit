@@ -21,22 +21,31 @@ uint8_t UART_Buffer[UART_BUFFER_SIZE];
 
 
 */
-
+//https://www.youtube.com/watch?v=tWryJb2L0cU
+//https://www.controllerstech.com/receive-uart-data-using-dma-and-idle-line-detection/
 #include "dma_circular.h"
+#include "main.h"
+//for timestamping of DMA ISR jump
+#include "tim.h"
 
 extern UART_HandleTypeDef huart2;
 extern DMA_HandleTypeDef hdma_usart2_rx;
 
 
-#define DMA_RX_BUFFER_SIZE          64
 extern uint8_t DMA_RX_Buffer[DMA_RX_BUFFER_SIZE];
 
-#define UART_BUFFER_SIZE            256
-extern uint8_t UART_Buffer[UART_BUFFER_SIZE];
+extern uint32_t USART2CounterVal;
+
+//MemPool For the NemaData  declatrated in main.cpp
+//osPoolDef(NemaPool, NEMASTAMEDBUFFERSIZE, nemaDataStamped);
+extern osPoolId NemaPool;
+extern osMessageQId NemaMsgBuffer;
 
 size_t Write;
 size_t len, tocopy;
 uint8_t* ptr;
+
+
 
 void USART_IrqHandler (UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
 {
@@ -49,8 +58,10 @@ void USART_IrqHandler (UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
 	}
 }
 
-void DMA_IrqHandler (DMA_HandleTypeDef *hdma)
+
+void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
 {
+	uint32_t USART2CounterVal = __HAL_TIM_GetCounter(&htim2);
 	typedef struct
 	{
 		__IO uint32_t ISR;   /*!< DMA interrupt status register */
@@ -67,45 +78,31 @@ void DMA_IrqHandler (DMA_HandleTypeDef *hdma)
 
 	     /* Get the length of the data */
 	  len = DMA_RX_BUFFER_SIZE - hdma->Instance->NDTR;
+	  uint16_t Addroffset=0;
+	  char * uEndOfSentenceIndex=strstr(DMA_RX_Buffer+Addroffset, "\r\n");
+	  if(uEndOfSentenceIndex!=NULL){
+	  uint32_t nemaLen=(uint32_t )uEndOfSentenceIndex-(uint32_t)DMA_RX_Buffer+Addroffset;
+	  if (nemaLen<NEMASENTENCMAXLEN){
+	  nemaDataStamped *mptr;
+		// ATENTION!! if buffer is full the allocation function is blocking aprox 60µs
+		mptr = (nemaDataStamped *) osPoolAlloc(NemaPool);
+		if (mptr != NULL) {
+			mptr->timestamp=USART2CounterVal;
 
-	  /* Get number of bytes we can copy to the end of buffer */
-	  tocopy = UART_BUFFER_SIZE - Write;
-
-	  /* Check how many bytes to copy */
-       if (tocopy > len)
-				{
-            tocopy = len;
-        }
-
-		 /* Write received data for UART main buffer for manipulation later */
-        ptr = DMA_RX_Buffer;
-        memcpy(&UART_Buffer[Write], ptr, tocopy);   /* Copy first part */
-
-		/* Correct values for remaining data */
-        Write += tocopy;
-        len -= tocopy;
-        ptr += tocopy;
-
-		/* UNCOMMENT BELOW TO transmit the data via uart */
-
-		//HAL_UART_Transmit(&huart2, &UART_Buffer[Write-tocopy], tocopy, 10);
-
-		/* If still data to write for beginning of buffer */
-       if (len)
-				{
-            memcpy(&UART_Buffer[0], ptr, len);      /* Don't care if we override Read pointer now */
-            Write = len;
-
-						/* UNCOMMENT BELOW TO transmit the data via uart */
-
-						//HAL_UART_Transmit(&huart2, UART_Buffer, len, 10);  // transmit the remaining data
-         }
-
+			//TODO remove segfault
+			memcpy(&(mptr->nemaSentence),&DMA_RX_Buffer[Addroffset],nemaLen);
+			mptr->size=uEndOfSentenceIndex-Addroffset;
+			//put dater pointer into MSGQ
+			osStatus result = osMessagePut(NemaMsgBuffer, (uint32_t) mptr,
+			0);
+		}
+	  }
+	  }
 		/* Prepare DMA for next transfer */
         /* Important! DMA stream won't start if all flags are not cleared first */
 
         regs->IFCR = 0x3FU << hdma->StreamIndex; // clear all interrupts
-				hdma->Instance->M0AR = (uint32_t)DMA_RX_Buffer;   /* Set memory address for DMA again */
+		hdma->Instance->M0AR = (uint32_t)DMA_RX_Buffer;   /* Set memory address for DMA again */
         hdma->Instance->NDTR = DMA_RX_BUFFER_SIZE;    /* Set number of bytes to receive */
         hdma->Instance->CR |= DMA_SxCR_EN;            /* Start DMA transfer */
 	}

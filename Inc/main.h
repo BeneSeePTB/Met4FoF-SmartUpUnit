@@ -61,7 +61,7 @@
 /* Includes ------------------------------------------------------------------*/
 
 /* USER CODE BEGIN Includes */
-
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private define ------------------------------------------------------------*/
@@ -137,6 +137,13 @@
 
 #define ACCBUFFESEIZE 128
 #define GPSBUFFERSIZE 32
+
+
+ //TODO this belongs into NEMA Lib
+#define DMA_RX_BUFFER_SIZE          9840//120*(80+2) printable +cr +lf
+#define NEMASTAMEDBUFFERSIZE 60
+
+
 /* ########################## Assert Selection ############################## */
 /**
   * @brief Uncomment the line below to expanse the "assert_param" macro in the 

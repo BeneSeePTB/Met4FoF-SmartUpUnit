@@ -15,7 +15,7 @@
 
 #endif
 
-#define NEMASENTENCMAXLEN 82
+#define NEMASENTENCMAXLEN 84
  typedef struct {
      uint32_t timestamp;
      uint16_t size;

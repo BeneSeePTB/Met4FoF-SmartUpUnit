@@ -81,6 +81,7 @@ osThreadId blinkTID;
 osThreadId DataProcessingTID;
 osThreadId DataStreamingTID;
 osThreadId LCDTID;
+osThreadId NemaParserTID;
 
 
 BMA280 Acc(GPIOG, SPI3_CS_Pin, &hspi3);
@@ -93,10 +94,16 @@ osPoolDef(AccPool, ACCBUFFESEIZE, AccelDataStamped);
 osPoolId AccPool;
 
 //MessageQ for the time Stamped data
-osMessageQDef(ACCMsgBuffer, ACCBUFFESEIZE, uint32_t);
+osMessageQDef(ACCMsgBuffer, ACCBUFFESEIZE,  uint32_t);
 osMessageQId ACCMsgBuffer;
 
+//MemPool For the NemaData
+osPoolDef(NemaPool, NEMASTAMEDBUFFERSIZE, nemaDataStamped);
+osPoolId NemaPool;
 
+//MessageQ for the NemaData
+osMessageQDef(NemaMsgBuffer, NEMASTAMEDBUFFERSIZE, uint32_t);
+osMessageQId NemaMsgBuffer;
 
 //MessageQ for the GPS PPS Timestamps
 osMessageQDef(GPSTimeBuffer, GPSBUFFERSIZE, uint32_t);
@@ -109,14 +116,6 @@ osMessageQId RefClockTimeBuffer;
 
 //TODO this belongs in the UART nema Lib
 uint8_t DMA_RX_Buffer[DMA_RX_BUFFER_SIZE];
-
-//MemPool For the NemaData
-osPoolDef(NemaPool, NEMASTAMEDBUFFERSIZE, nemaDataStamped);
-osPoolId NemaPool;
-
-//MessageQ for the Nema Data
-osMessageQDef(NemaMsgBuffer, GPSBUFFERSIZE, uint32_t);
-osMessageQId NemaMsgBuffer;
 
 // Network interface Ip
 uint8_t ETH_IP_ADDRESS[4]={192,168,0,10};
@@ -136,6 +135,7 @@ void StartBlinkThread(void const * argument);
 void StartDataProcessingThread(void const * argument);
 void StartDataStreamingThread(void const * argument);
 void StartLCDThread(void const * argument);
+void StartNemaParserThread(void const * argument);
 void _Error_Handler(char * file, int line);
 //TODO remove this getter functions and implement it in the dataprocessing
 float getGVal(int index);
@@ -213,12 +213,15 @@ int main(void) {
 	/* USER CODE BEGIN 2 */
 	//create the defined Buffer and Pool for ACC and GPS data
 	AccPool = osPoolCreate(osPool(AccPool));
+
 	ACCMsgBuffer = osMessageCreate(osMessageQ(ACCMsgBuffer), NULL);
 
 	GPSTimeBuffer = osMessageCreate(osMessageQ(GPSTimeBuffer), NULL);
 
 	RefClockTimeBuffer = osMessageCreate(osMessageQ(RefClockTimeBuffer), NULL);
 
+	NemaPool = osPoolCreate(osPool(NemaPool));
+	NemaMsgBuffer = osMessageCreate(osMessageQ(NemaMsgBuffer), NULL);
 	/* Create the thread(s) */
 	/* definition and creation of defaultTask */
 	osThreadDef(WebserverTherad, StartWebserverThread, osPriorityNormal, 0,
@@ -226,20 +229,34 @@ int main(void) {
 	WebServerTID = osThreadCreate(osThread(WebserverTherad), NULL);
 
 	osThreadDef(blinkThread, StartBlinkThread, osPriorityLow, 0, 16);
+
 	blinkTID = osThreadCreate(osThread(blinkThread), NULL);
+
+
 
 	osThreadDef(DataProcessingThread, StartDataProcessingThread, osPriorityHigh,
 			0, 256);
 	DataProcessingTID = osThreadCreate(osThread(DataProcessingThread), NULL);
 
+
+
+
 	osThreadDef(DataStreamingThread, StartDataStreamingThread, osPriorityNormal,
-			0, 2048);
+			0, 256);
+
 	DataStreamingTID = osThreadCreate(osThread(DataStreamingThread), NULL);
 
 	osThreadDef(LCDThread, StartLCDThread, osPriorityNormal,
 			0, 256);
-
 	LCDTID = osThreadCreate(osThread(LCDThread), NULL);
+
+
+	osThreadDef(NemaParserThread,StartNemaParserThread, osPriorityNormal,
+			0, 256);
+	NemaParserTID = osThreadCreate(osThread(NemaParserThread), NULL);
+
+
+
 	/* USER CODE END 2 */
 
 	//Start timer and arm inputcapture
@@ -256,7 +273,7 @@ int main(void) {
 		_Error_Handler(__FILE__, __LINE__);
 	}
 
-	RecivePacektOverUART2();
+
 	//
 
 	/* Start scheduler */
@@ -377,6 +394,19 @@ void StartBlinkThread(void const * argument) {
 void StartDataProcessingThread(void const * argument) {
 	while (1) {
 		osDelay(1000);
+	}
+
+	osThreadTerminate(NULL);
+}
+
+void StartNemaParserThread(void const * argument) {
+	int i=0;
+	if(i==0){
+	RecivePacektOverUART2();
+	}
+	i++;
+	while (1) {
+		osDelay(10000);
 	}
 
 	osThreadTerminate(NULL);
@@ -570,7 +600,8 @@ return ACCData.Data.temperature;
 //TODO this belongs in the UART nema Lib
 void RecivePacektOverUART2(){
 	// Arm UART DMA Interrupts
-    __HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
+	__HAL_UART_ENABLE_IT(&huart2,UART_IT_RXNE); //enable rx interupt and then enable idle lione after first byte is recived
+    //__HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
 	__HAL_DMA_ENABLE_IT(&hdma_usart2_rx,DMA_IT_TC);  // enable DMA Tx cplt interrupt
 	HAL_UART_Receive_DMA(&huart2, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);
 	hdma_usart2_rx.Instance->CR &= ~DMA_SxCR_HTIE;  // disable uart half tx interrupt

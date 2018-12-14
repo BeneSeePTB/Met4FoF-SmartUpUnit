@@ -47,8 +47,13 @@ uint8_t* ptr;
 
 
 
-void USART_IrqHandler (UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
+void USART_IrqHandler(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
 {
+	if ((huart->Instance->ISR & UART_FLAG_RXNE))
+	{
+		__HAL_UART_DISABLE_IT(&huart2,UART_IT_RXNE); //disable rx interupt and then enable idle line after first byte is recived
+	    __HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
+	}
 	if ((huart->Instance->ISR & UART_FLAG_IDLE))           /* if Idle flag is set */
 	{
 		volatile uint32_t tmp;                  /* Must be volatile to prevent optimizations */
@@ -85,15 +90,14 @@ void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
 	  if (nemaLen<NEMASENTENCMAXLEN){
 	  nemaDataStamped *mptr;
 		// ATENTION!! if buffer is full the allocation function is blocking aprox 60µs
-		mptr = (nemaDataStamped *) osPoolAlloc(NemaPool);
+		mptr = osPoolCAlloc(NemaPool);
 		if (mptr != NULL) {
 			mptr->timestamp=USART2CounterVal;
-
 			//TODO remove segfault
-			memcpy(&(mptr->nemaSentence),&DMA_RX_Buffer[Addroffset],nemaLen);
-			mptr->size=uEndOfSentenceIndex-Addroffset;
+			memcpy((mptr->nemaSentence),&DMA_RX_Buffer[Addroffset],nemaLen);
+			mptr->size=nemaLen;
 			//put dater pointer into MSGQ
-			osStatus result = osMessagePut(NemaMsgBuffer, (uint32_t) mptr,
+			osStatus result = osMessagePut(NemaMsgBuffer, (uint32_t)mptr,
 			0);
 		}
 	  }

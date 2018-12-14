@@ -84,9 +84,10 @@ void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
 	     /* Get the length of the data */
 	  len = DMA_RX_BUFFER_SIZE - hdma->Instance->NDTR;
 	  uint16_t Addroffset=0;
-	  char * uEndOfSentenceIndex=strstr(DMA_RX_Buffer+Addroffset, "\r\n");
-	  if(uEndOfSentenceIndex!=NULL){
-	  uint32_t nemaLen=(uint32_t )uEndOfSentenceIndex-(uint32_t)DMA_RX_Buffer+Addroffset;
+	  char * uEndOfSentenceIndex=strstr(DMA_RX_Buffer, "\r\n")+2;
+	  while(Addroffset<DMA_RX_BUFFER_SIZE&&uEndOfSentenceIndex!=NULL){
+	  uEndOfSentenceIndex=strstr(DMA_RX_Buffer+Addroffset, "\r\n")+2;
+	  uint32_t nemaLen=(uint32_t )uEndOfSentenceIndex-((uint32_t)DMA_RX_Buffer+Addroffset);
 	  if (nemaLen<NEMASENTENCMAXLEN){
 	  nemaDataStamped *mptr;
 		// ATENTION!! if buffer is full the allocation function is blocking aprox 60µs
@@ -101,13 +102,16 @@ void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
 			0);
 		}
 	  }
+	  Addroffset=Addroffset+nemaLen;
 	  }
+	  HAL_NVIC_DisableIRQ(USART2_IRQn);
+
 		/* Prepare DMA for next transfer */
         /* Important! DMA stream won't start if all flags are not cleared first */
 
         regs->IFCR = 0x3FU << hdma->StreamIndex; // clear all interrupts
-		hdma->Instance->M0AR = (uint32_t)DMA_RX_Buffer;   /* Set memory address for DMA again */
-        hdma->Instance->NDTR = DMA_RX_BUFFER_SIZE;    /* Set number of bytes to receive */
-        hdma->Instance->CR |= DMA_SxCR_EN;            /* Start DMA transfer */
+		//hdma->Instance->M0AR = (uint32_t)DMA_RX_Buffer;   /* Set memory address for DMA again */
+        //hdma->Instance->NDTR = DMA_RX_BUFFER_SIZE;    /* Set number of bytes to receive */
+        //hdma->Instance->CR |= DMA_SxCR_EN;            /* Start DMA transfer */
 	}
 }

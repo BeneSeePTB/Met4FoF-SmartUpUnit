@@ -140,7 +140,7 @@
 
 
  //TODO this belongs into NEMA Lib
-#define DMA_RX_BUFFER_SIZE          9840//120*(80+2) printable +cr +lf
+#define DMA_RX_BUFFER_SIZE          5040//60*(80+2+2) printable +cr +lf+2 extra bytes
 #define NEMASTAMEDBUFFERSIZE 60
 
 

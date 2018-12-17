@@ -400,13 +400,10 @@ void StartDataProcessingThread(void const * argument) {
 }
 
 void StartNemaParserThread(void const * argument) {
-	int i=0;
-	if(i==0){
 	RecivePacektOverUART2();
-	}
-	i++;
 	while (1) {
-		osDelay(10000);
+		osDelay(5000);
+		RecivePacektOverUART2();
 	}
 
 	osThreadTerminate(NULL);
@@ -438,7 +435,7 @@ void StartDataStreamingThread(void const * argument) {
 	osEvent evt;
 	osEvent evtGPS;
 	osEvent evtRefClock;
-	AccelDataStamped *rptr;
+	osEvent evtNema;
 	struct netconn *conn;
 	struct netbuf *buf;
 	//UDP target ip Adress
@@ -455,8 +452,9 @@ void StartDataStreamingThread(void const * argument) {
 	buf = netbuf_new();
 	while (1){
 		//Delay =200 ms so the other routine is processed with 5 Hz >>1 Hz GPS PPS
-		evt = osMessageGet(ACCMsgBuffer,200);
+		evt = osMessageGet(ACCMsgBuffer,50);
 		if (evt.status == osEventMessage) {
+			AccelDataStamped *rptr;
 			rptr = (AccelDataStamped*) evt.value.p;
 			ACCData = *rptr;
 			porcessedCount++;
@@ -472,6 +470,22 @@ void StartDataStreamingThread(void const * argument) {
 			/* send the text */
 			netconn_send(conn, buf);
 			osPoolFree(AccPool, rptr);
+		}
+		evtNema = osMessageGet(NemaMsgBuffer,0);
+		if (evtNema.status == osEventMessage) {
+			nemaDataStamped *rptr;
+			rptr = (nemaDataStamped*) evtNema.value.p;
+			uint8_t MSGBuffer[sizeof(nemaDataStamped)+4]={0};
+			MSGBuffer[0]=0x4e;
+			MSGBuffer[1]=0x45;
+			MSGBuffer[2]=0x4d;
+			MSGBuffer[3]=0x41;
+			memcpy(&MSGBuffer[4],&*rptr, sizeof(nemaDataStamped));
+			/* reference the data into the netbuf */
+			netbuf_ref(buf, &MSGBuffer, sizeof(MSGBuffer));
+			/* send the text */
+			netconn_send(conn, buf);
+			osPoolFree(NemaPool, rptr);
 		}
 		evtGPS = osMessageGet(GPSTimeBuffer,0);
 		if (evtGPS.status == osEventMessage) {
@@ -600,6 +614,7 @@ return ACCData.Data.temperature;
 //TODO this belongs in the UART nema Lib
 void RecivePacektOverUART2(){
 	// Arm UART DMA Interrupts
+	HAL_NVIC_EnableIRQ(USART2_IRQn);
     //__HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
 	__HAL_DMA_ENABLE_IT(&hdma_usart2_rx,DMA_IT_TC);  // enable DMA Tx cplt interrupt
 	HAL_UART_Receive_DMA(&huart2, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);

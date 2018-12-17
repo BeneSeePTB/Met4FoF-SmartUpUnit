@@ -81,7 +81,9 @@ def imu_publisher():
             with open(LOGFILENAME, mode='a') as GPSTimeDtataCSV:
                 GPSCSV_writer = csv.writer(GPSTimeDtataCSV, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
                 GPSCSV_writer.writerow(["REFT",RefCount,unpackeddata[1]])    
-            RefCount=RefCount+1            
+            RefCount=RefCount+1
+        if(data.startswith("NEMA")):
+            print(data)            
             
 
         

@@ -51,15 +51,20 @@ void USART_IrqHandler(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
 {
 	if ((huart->Instance->ISR & UART_FLAG_RXNE))
 	{
+		volatile uint32_t tmp;                  /* Must be volatile to prevent optimizations */
+        tmp = huart->Instance->ISR;                       /* Read status register */
+        tmp = huart->Instance->TDR;                       /* Read data register */
 		__HAL_UART_DISABLE_IT(&huart2,UART_IT_RXNE); //disable rx interupt and then enable idle line after first byte is recived
 	    __HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
 	}
-	if ((huart->Instance->ISR & UART_FLAG_IDLE))           /* if Idle flag is set */
+
+	else if ((huart->Instance->ISR & UART_FLAG_IDLE))           /* if Idle flag is set */
 	{
 		volatile uint32_t tmp;                  /* Must be volatile to prevent optimizations */
         tmp = huart->Instance->ISR;                       /* Read status register */
         tmp = huart->Instance->TDR;                       /* Read data register */
 		hdma->Instance->CR &= ~DMA_SxCR_EN;       /* Disabling DMA will force transfer complete interrupt if enabled */
+		HAL_NVIC_DisableIRQ(USART2_IRQn);
 	}
 }
 
@@ -83,6 +88,8 @@ void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
 
 	     /* Get the length of the data */
 	  len = DMA_RX_BUFFER_SIZE - hdma->Instance->NDTR;
+
+	  //TODO move this to an other tread
 	  uint16_t Addroffset=0;
 	  char * uEndOfSentenceIndex=strstr(DMA_RX_Buffer, "\r\n")+2;
 	  while(Addroffset<DMA_RX_BUFFER_SIZE&&uEndOfSentenceIndex!=NULL){
@@ -94,7 +101,6 @@ void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
 		mptr = osPoolCAlloc(NemaPool);
 		if (mptr != NULL) {
 			mptr->timestamp=USART2CounterVal;
-			//TODO remove segfault
 			memcpy((mptr->nemaSentence),&DMA_RX_Buffer[Addroffset],nemaLen);
 			mptr->size=nemaLen;
 			//put dater pointer into MSGQ

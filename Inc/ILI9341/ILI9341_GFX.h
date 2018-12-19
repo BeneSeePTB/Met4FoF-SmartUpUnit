@@ -51,6 +51,7 @@
  extern "C" {
 #endif
 #include "stm32f7xx_hal.h"
+#include "ILI9341/ILI9341_STM32_Driver.h"
 
 #define HORIZONTAL_IMAGE	0
 #define VERTICAL_IMAGE		1

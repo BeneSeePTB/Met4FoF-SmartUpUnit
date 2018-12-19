@@ -37,6 +37,7 @@
 ## to the 'chatter' topic
 
 import rospy
+
 from std_msgs.msg import String
 from sensor_msgs.msg import Imu
 from struct import *
@@ -54,6 +55,7 @@ sock.bind((UDP_IP, UDP_PORT))
 def imu_publisher():
     GPSTCount=0
     RefCount=0
+    NemaCount=0
     pub_imu = rospy.Publisher("IMU", Imu, queue_size=1)
     rospy.init_node('imu_publisher', anonymous=True)
     while not rospy.is_shutdown():
@@ -83,7 +85,8 @@ def imu_publisher():
                 GPSCSV_writer.writerow(["REFT",RefCount,unpackeddata[1]])    
             RefCount=RefCount+1
         if(data.startswith("NEMA")):
-            print(data)            
+            print(NemaCount,str(data))
+            NemaCount=NemaCount+1            
             
 
         

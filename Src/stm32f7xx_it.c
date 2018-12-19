@@ -51,6 +51,7 @@ extern UART_HandleTypeDef huart2;
 extern uint32_t USART2CounterVal;
 
 extern void USART_IrqHandler (UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma);
+extern void DMA_UARTHandler(DMA_HandleTypeDef *hdma);
 
 extern void DMA_IrqHandler (DMA_HandleTypeDef *hdma);
 

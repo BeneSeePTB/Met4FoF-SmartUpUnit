@@ -73,8 +73,8 @@
 #include "bma280.h"
 
 //LCD
-#include "ILI9341/ILI9341_STM32_Driver.h"
 #include "ILI9341/ILI9341_GFX.h"
+#include "ILI9341/ILI9341_STM32_Driver.h"
 
 osThreadId WebServerTID;
 osThreadId blinkTID;
@@ -614,12 +614,9 @@ return ACCData.Data.temperature;
 //TODO this belongs in the UART nema Lib
 void RecivePacektOverUART2(){
 	// Arm UART DMA Interrupts
-	HAL_NVIC_EnableIRQ(USART2_IRQn);
-    //__HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
-	__HAL_DMA_ENABLE_IT(&hdma_usart2_rx,DMA_IT_TC);  // enable DMA Tx cplt interrupt
-	HAL_UART_Receive_DMA(&huart2, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);
-	hdma_usart2_rx.Instance->CR &= ~DMA_SxCR_HTIE;  // disable uart half tx interrupt
-	__HAL_UART_ENABLE_IT(&huart2,UART_IT_RXNE); //enable rx interupt and then enable idle lione after first byte is recived
+	__HAL_UART_ENABLE_IT(&huart2, UART_IT_IDLE);   // enable idle line interrupt
+    __HAL_DMA_ENABLE_IT (&hdma_usart2_rx, DMA_IT_TC);  // enable DMA Tx cplt interrupt
+	HAL_UART_Receive_DMA (&huart2, DMA_RX_Buffer, DMA_RX_BUFFER_SIZE);
 }
 
 #ifdef  USE_FULL_ASSERT

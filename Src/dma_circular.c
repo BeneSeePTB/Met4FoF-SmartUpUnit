@@ -28,13 +28,9 @@ uint8_t UART_Buffer[UART_BUFFER_SIZE];
 //for timestamping of DMA ISR jump
 #include "tim.h"
 
-extern UART_HandleTypeDef huart2;
-extern DMA_HandleTypeDef hdma_usart2_rx;
 
 
 extern uint8_t DMA_RX_Buffer[DMA_RX_BUFFER_SIZE];
-
-extern uint32_t USART2CounterVal;
 
 //MemPool For the NemaData  declatrated in main.cpp
 //osPoolDef(NemaPool, NEMASTAMEDBUFFERSIZE, nemaDataStamped);
@@ -42,23 +38,14 @@ extern osPoolId NemaPool;
 extern osMessageQId NemaMsgBuffer;
 
 size_t Write;
-size_t len, tocopy;
+size_t recivedLen, tocopy;
 uint8_t* ptr;
 
 
 
 void USART_IrqHandler(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma)
 {
-	if ((huart->Instance->ISR & UART_FLAG_RXNE))
-	{
-		volatile uint32_t tmp;                  /* Must be volatile to prevent optimizations */
-        tmp = huart->Instance->ISR;                       /* Read status register */
-        tmp = huart->Instance->TDR;                       /* Read data register */
-		__HAL_UART_DISABLE_IT(&huart2,UART_IT_RXNE); //disable rx interupt and then enable idle line after first byte is recived
-	    __HAL_UART_ENABLE_IT(&huart2,UART_IT_IDLE);   // enable idle line interrupt
-	}
-
-	else if ((huart->Instance->ISR & UART_FLAG_IDLE))           /* if Idle flag is set */
+	if ((huart->Instance->ISR & UART_FLAG_IDLE))           /* if Idle flag is set */
 	{
 		volatile uint32_t tmp;                  /* Must be volatile to prevent optimizations */
         tmp = huart->Instance->ISR;                       /* Read status register */
@@ -87,12 +74,12 @@ void DMA_UARTHandler(DMA_HandleTypeDef *hdma)
       regs->IFCR = DMA_FLAG_TCIF0_4 << hdma->StreamIndex;
 
 	     /* Get the length of the data */
-	  len = DMA_RX_BUFFER_SIZE - hdma->Instance->NDTR;
+	  recivedLen = DMA_RX_BUFFER_SIZE - hdma->Instance->NDTR;
 
 	  //TODO move this to an other tread
 	  uint16_t Addroffset=0;
 	  char * uEndOfSentenceIndex=strstr(DMA_RX_Buffer, "\r\n")+2;
-	  while(Addroffset<DMA_RX_BUFFER_SIZE&&uEndOfSentenceIndex!=NULL){
+	  while(Addroffset<recivedLen&&uEndOfSentenceIndex!=NULL){
 	  uEndOfSentenceIndex=strstr(DMA_RX_Buffer+Addroffset, "\r\n")+2;
 	  uint32_t nemaLen=(uint32_t )uEndOfSentenceIndex-((uint32_t)DMA_RX_Buffer+Addroffset);
 	  if (nemaLen<NEMASENTENCMAXLEN){
